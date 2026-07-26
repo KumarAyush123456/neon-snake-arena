@@ -19,7 +19,7 @@ provider "aws" {
 # --- VARIABLES ---
 variable "aws_region" {
   type        = string
-  default     = "us-east-1"
+  default     = "ap-south-1"
   description = "Target AWS region for resources"
 }
 
