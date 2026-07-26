@@ -182,7 +182,7 @@ Resources:
           Value: !Sub '${AppName}-tasks-sg'
 
   ApplicationLoadBalancer:
-    Type: AWS::ELBv2::LoadBalancer
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
       Name: !Sub '${AppName}-alb'
       Scheme: internet-facing
@@ -197,7 +197,7 @@ Resources:
           Value: !Sub '${AppName}-alb'
 
   AlbTargetGroup:
-    Type: AWS::ELBv2::TargetGroup
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
       Name: !Sub '${AppName}-tg'
       Port: 3001
@@ -218,7 +218,7 @@ Resources:
       UnhealthyThresholdCount: 3
 
   AlbListener:
-    Type: AWS::ELBv2::Listener
+    Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       LoadBalancerArn: !Ref ApplicationLoadBalancer
       Port: 80
