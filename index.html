@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Neon Snake Arena - Online Snake Game Platform</title>
+  <meta name="description" content="Play singleplayer, AI battle, local VS, or simulated online multiplayer in Neon Snake Arena. Unlock skins, trails, and climb the global leaderboards!">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <!-- Animated Background Grid -->
+  <div class="bg-grid"></div>
+  <div class="bg-glow"></div>
+
+  <!-- Main Platform Container -->
+  <div class="app-container" id="app">
+    
+    <!-- Top Navigation Bar -->
+    <header class="app-header">
+      <div class="brand">
+        <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 1.5 1 2.5 2 3.5s2 1 3 2.5c1.072 2.143.224 4.054-2 6" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M12 12c.5-1.5 1-2.5 2-3.5s2-1 3-2.5c1.072-2.143-.224-4.054-2-6" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+        </svg>
+        <span class="brand-text">NEON<span class="highlight">SNAKE</span></span>
+      </div>
+
+      <nav class="nav-tabs">
+        <button class="nav-btn active" data-tab="play">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+          Arena
+        </button>
+        <button class="nav-btn" data-tab="shop">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+          Shop
+        </button>
+        <button class="nav-btn" data-tab="leaderboard">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          Leaderboard
+        </button>
+        <button class="nav-btn" data-tab="profile">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Profile
+        </button>
+      </nav>
+
+      <div class="header-right">
+        <!-- Audio Control -->
+        <button class="sound-toggle-btn" id="audioToggle" title="Toggle Audio (Mute/Unmute)">
+          <svg id="audioIconOn" class="sound-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+          </svg>
+          <svg id="audioIconOff" class="sound-icon hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+            <line x1="23" y1="9" x2="17" y2="15"/>
+            <line x1="17" y1="9" x2="23" y2="15"/>
+          </svg>
+        </button>
+
+        <!-- Player Count -->
+        <div class="live-indicator" title="Total active players online">
+          <span class="pulse-dot"></span>
+          <span class="live-count" id="onlineCount">1,248 Online</span>
+        </div>
+
+        <!-- Coin Wallet -->
+        <div class="coin-display">
+          <svg class="coin-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 8v8M9 10h4.5a2.5 2.5 0 0 1 0 5H9"/>
+          </svg>
+          <span id="playerCoins">0</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Platform Grid Layout -->
+    <main class="platform-layout">
+      <!-- Active View Content -->
+      <section class="view-content" id="viewContainer">
+        
+        <!-- PLAY VIEW -->
+        <div class="view active" id="view-play">
+          <div class="play-grid">
+            <div class="modes-panel">
+              <h1 class="view-title">Select Battle Area</h1>
+              
+              <div class="game-modes">
+                <!-- Classic Mode -->
+                <div class="mode-card" data-mode="classic">
+                  <div class="mode-glow glow-classic"></div>
+                  <div class="mode-header">
+                    <span class="mode-badge">Solo</span>
+                    <span class="difficulty-tag">Classic</span>
+                  </div>
+                  <h3>Neon Practice</h3>
+                  <p>Eat energy cells, avoid walls and your own tail. Test your reflexes as the speed ramps up.</p>
+                  <div class="mode-footer">
+                    <span class="mode-reward">
+                      <svg class="coin-icon-small" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M9 10h4.5a2.5 2.5 0 0 1 0 5H9"/></svg>
+                      1x Coins
+                    </span>
+                    <button class="btn btn-mode">Select</button>
+                  </div>
+                </div>
+
+                <!-- AI Battle Mode -->
+                <div class="mode-card" data-mode="ai-battle">
+                  <div class="mode-glow glow-ai"></div>
+                  <div class="mode-header">
+                    <span class="mode-badge">1v1 AI</span>
+                    <span class="difficulty-tag normal">Medium</span>
+                  </div>
+                  <h3>Cyber Duel</h3>
+                  <p>Face off against a smart neural-net bot snake. Encircle and cut them off to win their bounty!</p>
+                  <div class="mode-footer">
+                    <span class="mode-reward">
+                      <svg class="coin-icon-small" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M9 10h4.5a2.5 2.5 0 0 1 0 5H9"/></svg>
+                      2x Coins
+                    </span>
+                    <button class="btn btn-mode">Select</button>
+                  </div>
+                </div>
+
+                <!-- Local VS Mode -->
+                <div class="mode-card" data-mode="local-vs">
+                  <div class="mode-glow glow-vs"></div>
+                  <div class="mode-header">
+                    <span class="mode-badge">2 Players</span>
+                    <span class="difficulty-tag local">Local VS</span>
+                  </div>
+                  <h3>Grid Showdown</h3>
+                  <p>Grab a friend on the same keyboard! P1 (WASD) vs P2 (Arrows). Fast-paced arena duel.</p>
+                  <div class="mode-footer">
+                    <span class="mode-controls-hint">WASD vs Arrows</span>
+                    <button class="btn btn-mode">Select</button>
+                  </div>
+                </div>
+
+                <!-- Simulated Online Multiplayer Mode -->
+                <div class="mode-card" data-mode="online-arena">
+                  <div class="mode-glow glow-online"></div>
+                  <div class="mode-header">
+                    <span class="mode-badge">Multiplayer</span>
+                    <span class="difficulty-tag chaotic">Dynamic</span>
+                  </div>
+                  <h3>Infinite Nexus</h3>
+                  <p>Enter a persistent global arena with multiple live players. Avoid collisions, gain weight, and dominate the ranking!</p>
+                  <div class="mode-footer">
+                    <span class="mode-reward">
+                      <svg class="coin-icon-small" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M9 10h4.5a2.5 2.5 0 0 1 0 5H9"/></svg>
+                      3x Coins
+                    </span>
+                    <button class="btn btn-mode">Select</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Selection detail / Queue screen -->
+              <div class="lobby-action-box hidden" id="lobbyActionBox">
+                <div class="lobby-details">
+                  <h3 id="selectedModeTitle">Mode Name</h3>
+                  <p id="selectedModeDesc">Description of mode.</p>
+                  
+                  <div class="queue-status hidden" id="queueStatus">
+                    <div class="loader-spinner"></div>
+                    <span id="queueText">Finding active grid node...</span>
+                  </div>
+                </div>
+                <div class="lobby-actions">
+                  <button class="btn btn-secondary" id="btnCancelQueue">Back</button>
+                  <button class="btn btn-primary" id="btnLaunchGame">Enter Arena</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SHOP VIEW -->
+        <div class="view" id="view-shop">
+          <div class="shop-header">
+            <h1 class="view-title">Cosmetics Store</h1>
+            <p class="subtitle">Customize your snake's look. Earn coins in all battle modes to unlock new energy skins!</p>
+          </div>
+          <div class="shop-grid" id="shopGrid">
+            <!-- Shop items injected by JavaScript -->
+          </div>
+        </div>
+
+        <!-- LEADERBOARD VIEW -->
+        <div class="view" id="view-leaderboard">
+          <h1 class="view-title">Global Rankings</h1>
+          <div class="leaderboard-container">
+            <div class="leaderboard-tabs">
+              <button class="leaderboard-tab active" data-board="all-time">All Time High</button>
+              <button class="leaderboard-tab" data-board="daily">Daily Arena Champions</button>
+            </div>
+            <table class="leaderboard-table">
+              <thead>
+                <tr>
+                  <th>Rank</th>
+                  <th>Arena Pilot</th>
+                  <th>Skin Config</th>
+                  <th>Best Score</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="leaderboardBody">
+                <!-- Leaderboard rows injected by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- PROFILE VIEW -->
+        <div class="view" id="view-profile">
+          <h1 class="view-title">Pilot Profile</h1>
+          <div class="profile-layout">
+            <div class="profile-card">
+              <div class="profile-avatar">
+                <div class="avatar-glow"></div>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
+              </div>
+              <h2 id="profileUsername">Grid_Pilot_99</h2>
+              <span class="user-tier">Arena Veteran</span>
+              <div class="profile-quick-stats">
+                <div class="q-stat">
+                  <span class="q-val" id="statMatches">0</span>
+                  <span class="q-lbl">Runs</span>
+                </div>
+                <div class="q-stat">
+                  <span class="q-val" id="statHighScore">0</span>
+                  <span class="q-lbl">Record</span>
+                </div>
+                <div class="q-stat">
+                  <span class="q-val" id="statTotalCoins">0</span>
+                  <span class="q-lbl">Earned</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="profile-details-panel">
+              <div class="details-section">
+                <h3>Arena Statistics</h3>
+                <div class="stats-grid">
+                  <div class="stat-box">
+                    <span class="stat-title">Total Cells Eaten</span>
+                    <span class="stat-value" id="statTotalFood">0</span>
+                  </div>
+                  <div class="stat-box">
+                    <span class="stat-title">Combat Kills</span>
+                    <span class="stat-value" id="statKills">0</span>
+                  </div>
+                  <div class="stat-box">
+                    <span class="stat-title">Max Snake Length</span>
+                    <span class="stat-value" id="statMaxLength">0</span>
+                  </div>
+                  <div class="stat-box">
+                    <span class="stat-title">Time in Arena</span>
+                    <span class="stat-value" id="statTimePlayed">0m</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="details-section">
+                <h3>System Achievements</h3>
+                <div class="achievements-list" id="achievementsList">
+                  <!-- Achievements injected by JS -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Simulated Sidebar Chat (Visible on Play View or globally for platform immersion) -->
+      <aside class="platform-sidebar">
+        <div class="sidebar-header">
+          <h3>Nexus Live Chat</h3>
+          <span class="active-chatters">18 pilots active</span>
+        </div>
+        <div class="chat-feed" id="chatFeed">
+          <!-- Live mock comments injected in real-time -->
+        </div>
+        <div class="chat-input-area">
+          <input type="text" id="chatInput" placeholder="Send message to lobby..." max-length="60">
+          <button id="btnSendChat">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="22" y1="2" x2="11" y2="13"/>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </button>
+        </div>
+      </aside>
+    </main>
+
+    <!-- IMMERSIVE ARCADE PLAY MODAL -->
+    <div class="game-overlay-modal hidden" id="gameModal">
+      <div class="game-modal-content">
+        <!-- Game HUD -->
+        <div class="game-hud">
+          <div class="hud-item player-info-hud">
+            <span class="hud-label">Pilot</span>
+            <span class="hud-val" id="hudPlayerName">Pilot</span>
+          </div>
+          <div class="hud-item score-hud">
+            <span class="hud-label">Score</span>
+            <span class="hud-val score-animate" id="hudScore">0000</span>
+          </div>
+          <div class="hud-item coins-earned-hud">
+            <span class="hud-label">Gained</span>
+            <span class="hud-val text-yellow" id="hudCoinsGained">+0</span>
+          </div>
+          <div class="hud-item powerup-hud">
+            <span class="hud-label">Active Matrix</span>
+            <div class="hud-powerups-list" id="hudPowerups">
+              <!-- Icons for active powerups -->
+              <span class="no-powerups">None</span>
+            </div>
+          </div>
+          <div class="hud-item actions-hud">
+            <button class="hud-btn" id="btnPauseGame" title="Pause Game (Esc)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Game Screen (HTML5 Canvas Wrapper) -->
+        <div class="canvas-wrapper">
+          <canvas id="gameCanvas"></canvas>
+          
+          <!-- Large Start / Countdown overlay inside screen -->
+          <div class="canvas-overlay" id="canvasOverlay">
+            <div class="countdown-display hidden" id="countdownDisplay">3</div>
+            <div class="overlay-card" id="menuOverlay">
+              <h2 id="overlayTitle">Ready for Launch?</h2>
+              <p id="overlayMessage">Use WASD or Arrow Keys to pilot your snake node.</p>
+              <button class="btn btn-primary btn-large" id="btnOverlayStart">LAUNCH</button>
+            </div>
+          </div>
+
+          <!-- Pause Menu -->
+          <div class="canvas-overlay hidden" id="pauseOverlay">
+            <div class="overlay-card">
+              <h2>Arena Paused</h2>
+              <p>System matrix state frozen.</p>
+              <div class="overlay-buttons">
+                <button class="btn btn-secondary" id="btnPauseQuit">Terminate Run</button>
+                <button class="btn btn-primary" id="btnPauseResume">Resume System</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Game Over Menu -->
+          <div class="canvas-overlay hidden" id="gameOverOverlay">
+            <div class="overlay-card">
+              <h2 class="text-glow-red" id="gameOverTitle">System Defeat</h2>
+              <p id="gameOverMessage">Collided with energy boundary.</p>
+              
+              <div class="stats-summary-grid">
+                <div class="summary-item">
+                  <span class="lbl">Final Score</span>
+                  <span class="val" id="summaryScore">0</span>
+                </div>
+                <div class="summary-item">
+                  <span class="lbl">Coins Salvaged</span>
+                  <span class="val text-yellow" id="summaryCoins">+0</span>
+                </div>
+                <div class="summary-item">
+                  <span class="lbl">Max Length</span>
+                  <span class="val" id="summaryLength">0</span>
+                </div>
+                <div class="summary-item">
+                  <span class="lbl">Kills</span>
+                  <span class="val text-cyan" id="summaryKills">0</span>
+                </div>
+              </div>
+
+              <div class="overlay-buttons">
+                <button class="btn btn-secondary" id="btnGameOverExit">Exit to Lobby</button>
+                <button class="btn btn-primary" id="btnGameOverRetry">Relaunch Grid</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="game-controls-help" id="controlsHelp">
+          <span>Controls: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or <kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd> to steer. <kbd>Esc</kbd> to Pause.</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Entry Script -->
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
