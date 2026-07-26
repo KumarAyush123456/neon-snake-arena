@@ -351,19 +351,14 @@ Resources:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Sub '${AppName}-frontend-assets-${AWS::AccountId}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
       WebsiteConfiguration:
         IndexDocument: index.html
         ErrorDocument: index.html
-
-  CloudFrontOAC:
-    Type: AWS::CloudFront::OriginAccessControl
-    Properties:
-      OriginAccessControlConfig:
-        Name: !Sub '${AppName}-oac'
-        Description: CloudFront Access Control to lock S3 public access
-        OriginAccessControlOriginType: s3
-        SigningBehavior: always
-        SigningProtocol: sigv4
 
   S3BucketPolicy:
     Type: AWS::S3::BucketPolicy
@@ -372,77 +367,22 @@ Resources:
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
-          - Effect: Allow
-            Principal:
-              Service: cloudfront.amazonaws.com
+          - Sid: PublicReadGetObject
+            Effect: Allow
+            Principal: '*'
             Action: s3:GetObject
             Resource: !Sub 'arn:aws:s3:::${S3BucketFrontend}/*'
-            Condition:
-              StringEquals:
-                AWS:SourceArn: !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}'
-
-  CloudFrontDistribution:
-    Type: AWS::CloudFront::Distribution
-    Properties:
-      DistributionConfig:
-        Enabled: true
-        DefaultRootObject: index.html
-        Origins:
-          - Id: S3-StaticSite
-            DomainName: !GetAtt S3BucketFrontend.RegionalDomainName
-            OriginAccessControlId: !GetAtt CloudFrontOAC.Id
-            S3OriginConfig:
-              OriginAccessIdentity: ''
-          - Id: ALB-WebSockets
-            DomainName: !GetAtt ApplicationLoadBalancer.DNSName
-            CustomOriginConfig:
-              HTTPPort: 80
-              OriginProtocolPolicy: http-only
-              OriginSSLProtocols:
-                - TLSv1.2
-              OriginReadTimeout: 60
-              OriginKeepaliveTimeout: 60
-        DefaultCacheBehavior:
-          TargetOriginId: S3-StaticSite
-          ViewerProtocolPolicy: redirect-to-https
-          ForwardedValues:
-            QueryString: false
-            Cookies:
-              Forward: none
-          MinTTL: 0
-          DefaultTTL: 3600
-          MaxTTL: 86400
-        CacheBehaviors:
-          - PathPattern: /socket.io/*
-            TargetOriginId: ALB-WebSockets
-            ViewerProtocolPolicy: allow-all
-            MinTTL: 0
-            DefaultTTL: 0
-            MaxTTL: 0
-            ForwardedValues:
-              QueryString: true
-              Headers:
-                - '*'
-              Cookies:
-                Forward: all
-          - PathPattern: /health
-            TargetOriginId: ALB-WebSockets
-            ViewerProtocolPolicy: allow-all
-            MinTTL: 0
-            DefaultTTL: 0
-            MaxTTL: 0
-            ForwardedValues:
-              QueryString: false
-              Cookies:
-                Forward: none
 
 Outputs:
-  CloudFrontDomain:
-    Value: !GetAtt CloudFrontDistribution.DomainName
-    Description: The globally distributed CDN address of the Neon Snake Arena platform.
+  S3WebsiteUrl:
+    Value: !GetAtt S3BucketFrontend.WebsiteURL
+    Description: Public website URL to play the game.
+  ALBAddress:
+    Value: !GetAtt ApplicationLoadBalancer.DNSName
+    Description: Mainframe load balancer address.
   ECRRepositoryUri:
     Value: !GetAtt EcrRepository.RepositoryUri
-    Description: ECR Docker Registry URI for push commands.
+    Description: ECR Docker Registry URI for push.
   S3BucketName:
     Value: !Ref S3BucketFrontend
-    Description: Name of the frontend hosting S3 bucket.
+    Description: Name of the frontend S3 bucket.
