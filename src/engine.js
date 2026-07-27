@@ -339,6 +339,7 @@ export class GameEngine {
   }
 
   start() {
+    if (this.isRunning) return;
     this.isRunning = true;
     this.loop();
   }
@@ -366,7 +367,7 @@ export class GameEngine {
       store.addCoins(this.coinsGained);
     }
     
-    store.addMatchResult(this.localPlayer.score, this.kills, Math.floor(this.localPlayer.survivalTime));
+    store.addMatchResult(this.localPlayer ? this.localPlayer.score : 0, this.kills, Math.floor(this.localPlayer ? this.localPlayer.survivalTime : 0));
 
     document.getElementById('gameOverOverlay').classList.remove('hidden');
     document.getElementById('gameOverTitle').innerText = title || 'WASTED';
@@ -375,14 +376,15 @@ export class GameEngine {
     document.getElementById('summaryKills').innerText = this.kills;
     document.getElementById('summaryCoins').innerText = `+${this.coinsGained}`;
     
-    const acc = this.localPlayer.totalShots > 0 
+    const acc = (this.localPlayer && this.localPlayer.totalShots > 0)
       ? Math.round((this.localPlayer.hits / this.localPlayer.totalShots) * 100) 
       : 100;
     document.getElementById('summaryAccuracy').innerText = `${acc}%`;
-    document.getElementById('summaryTime').innerText = `${Math.floor(this.localPlayer.survivalTime)}s`;
+    document.getElementById('summaryTime').innerText = `${Math.floor(this.localPlayer ? this.localPlayer.survivalTime : 0)}s`;
   }
 
   updateHUD() {
+    if (!this.localPlayer) return;
     document.getElementById('hudPlayerName').innerText = this.localPlayer.name;
     document.getElementById('hudScore').innerText = this.kills;
     
@@ -390,7 +392,9 @@ export class GameEngine {
     document.getElementById('hudFuelBar').style.width = `${Math.max(0, this.localPlayer.fuel)}%`;
     
     const wp = this.weapons[this.localPlayer.currentWeapon];
-    document.getElementById('hudWeaponAmmo').innerText = `${wp.name}: ${this.localPlayer.ammo} / ${wp.ammoMax}`;
+    if (wp) {
+      document.getElementById('hudWeaponAmmo').innerText = `${wp.name}: ${this.localPlayer.ammo} / ${wp.ammoMax}`;
+    }
     
     const grenEl = document.getElementById('hudGrenades');
     if (grenEl) {
@@ -401,8 +405,12 @@ export class GameEngine {
   loop() {
     if (!this.isRunning) return;
 
-    this.update();
-    this.draw();
+    try {
+      this.update();
+      this.draw();
+    } catch (e) {
+      console.error("Game loop error:", e);
+    }
 
     requestAnimationFrame(() => this.loop());
   }
