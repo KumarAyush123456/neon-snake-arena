@@ -206,12 +206,14 @@
                   <th>Rank</th>
                   <th>Arena Pilot</th>
                   <th>Skin Config</th>
-                  <th>Best Score</th>
-                  <th>Status</th>
+                  <th>Soldier</th>
+                  <th>Combat Score</th>
+                  <th>Kills</th>
+                  <th>Tier</th>
                 </tr>
               </thead>
               <tbody id="leaderboardBody">
-                <!-- Leaderboard rows injected by JS -->
+                <!-- Dynamically populated -->
               </tbody>
             </table>
           </div>
@@ -219,7 +221,7 @@
 
         <!-- PROFILE VIEW -->
         <div class="view" id="view-profile">
-          <h1 class="view-title">Pilot Profile</h1>
+          <h1 class="view-title">Soldier Profile</h1>
           <div class="profile-layout">
             <div class="profile-card">
               <div class="profile-avatar">
@@ -230,14 +232,14 @@
                 </svg>
               </div>
               <div class="username-edit-container">
-                <input type="text" id="profileUsernameInput" class="username-input" value="Grid_Pilot_99" maxlength="15" title="Change your grid username">
+                <input type="text" id="profileUsernameInput" class="username-input" value="Sgt_Pilot_99" maxlength="15" title="Change your soldier name">
                 <button id="btnSaveUsername" class="btn btn-save-username" title="Save Username">Save</button>
               </div>
-              <span class="user-tier">Arena Veteran</span>
+              <span class="user-tier">🎖️ Combat Commander</span>
               <div class="profile-quick-stats">
                 <div class="q-stat">
                   <span class="q-val" id="statMatches">0</span>
-                  <span class="q-lbl">Runs</span>
+                  <span class="q-lbl">Battles</span>
                 </div>
                 <div class="q-stat">
                   <span class="q-val" id="statHighScore">0</span>
@@ -245,7 +247,7 @@
                 </div>
                 <div class="q-stat">
                   <span class="q-val" id="statTotalCoins">0</span>
-                  <span class="q-lbl">Earned</span>
+                  <span class="q-lbl">Bounty</span>
                 </div>
               </div>
             </div>
@@ -255,7 +257,7 @@
                 <h3>Arena Statistics</h3>
                 <div class="stats-grid">
                   <div class="stat-box">
-                    <span class="stat-title">Total Cells Eaten</span>
+                    <span class="stat-title">Total Shots Fired</span>
                     <span class="stat-value" id="statTotalFood">0</span>
                   </div>
                   <div class="stat-box">
@@ -263,20 +265,13 @@
                     <span class="stat-value" id="statKills">0</span>
                   </div>
                   <div class="stat-box">
-                    <span class="stat-title">Max Snake Length</span>
-                    <span class="stat-value" id="statMaxLength">0</span>
+                    <span class="stat-title">Combat Rank</span>
+                    <span class="stat-value" id="statMaxLength">Sergeant</span>
                   </div>
                   <div class="stat-box">
-                    <span class="stat-title">Time in Arena</span>
+                    <span class="stat-title">Time in Battle</span>
                     <span class="stat-value" id="statTimePlayed">0m</span>
                   </div>
-                </div>
-              </div>
-
-              <div class="details-section">
-                <h3>System Achievements</h3>
-                <div class="achievements-list" id="achievementsList">
-                  <!-- Achievements injected by JS -->
                 </div>
               </div>
             </div>
@@ -285,17 +280,17 @@
 
       </section>
 
-      <!-- Simulated Sidebar Chat (Visible on Play View or globally for platform immersion) -->
+      <!-- Simulated Sidebar Chat -->
       <aside class="platform-sidebar">
         <div class="sidebar-header">
-          <h3>Nexus Live Chat</h3>
+          <h3>Militia Radio Feed</h3>
           <span class="active-chatters">18 pilots active</span>
         </div>
         <div class="chat-feed" id="chatFeed">
           <!-- Live mock comments injected in real-time -->
         </div>
         <div class="chat-input-area">
-          <input type="text" id="chatInput" placeholder="Send message to lobby..." max-length="60">
+          <input type="text" id="chatInput" placeholder="Send comms to lobby..." max-length="60">
           <button id="btnSendChat">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="22" y1="2" x2="11" y2="13"/>
@@ -312,24 +307,28 @@
         <!-- Game HUD -->
         <div class="game-hud">
           <div class="hud-item player-info-hud">
-            <span class="hud-label">Pilot</span>
-            <span class="hud-val" id="hudPlayerName">Pilot</span>
+            <span class="hud-label">SOLDIER</span>
+            <span class="hud-val" id="hudPlayerName">Sgt. Pilot</span>
           </div>
           <div class="hud-item health-hud">
-            <span class="hud-label">HEALTH</span>
+            <div class="hud-header-line"><span class="hud-icon">💀</span><span class="hud-label">HEALTH</span></div>
             <div class="hud-bar-container"><div class="hud-bar health-bar" id="hudHealthBar" style="width: 100%"></div></div>
           </div>
           <div class="hud-item fuel-hud">
-            <span class="hud-label">JETPACK FUEL</span>
+            <div class="hud-header-line"><span class="hud-icon">🚀</span><span class="hud-label">JETPACK BOOST</span></div>
             <div class="hud-bar-container"><div class="hud-bar fuel-bar" id="hudFuelBar" style="width: 100%"></div></div>
           </div>
           <div class="hud-item weapon-hud">
-            <span class="hud-label">WEAPON</span>
-            <span class="hud-val" id="hudWeaponAmmo">Assault Rifle: 30 / ∞</span>
+            <span class="hud-label">GUN LOADOUT</span>
+            <span class="hud-val" id="hudWeaponAmmo">AK-47: 30 / 120</span>
+          </div>
+          <div class="hud-item grenade-hud">
+            <span class="hud-label">GRENADES</span>
+            <span class="hud-val text-yellow" id="hudGrenades">💣 x 3</span>
           </div>
           <div class="hud-item score-hud">
-            <span class="hud-label">Kills</span>
-            <span class="hud-val" id="hudScore">0</span>
+            <span class="hud-label">KILLS</span>
+            <span class="hud-val text-cyan" id="hudScore">0</span>
           </div>
           <div class="hud-item actions-hud">
             <button class="hud-btn" id="btnPauseGame" title="Pause Game (Esc)">

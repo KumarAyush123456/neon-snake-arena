@@ -224,14 +224,19 @@ class App {
     this.pauseOverlay.classList.add('hidden');
     this.countdownDisplay.classList.add('hidden');
 
+    // Trigger canvas resize after layout update
+    requestAnimationFrame(() => {
+      this.engine.resizeCanvas();
+    });
+
     // Update overlay title
-    let modeText = 'Classic Grid';
+    let modeText = 'Boot Camp Practice';
     if (this.selectedMode === 'ai-battle') modeText = 'Cyber Duel vs AI';
     if (this.selectedMode === 'local-vs') modeText = 'Dual Grid Showdown';
-    if (this.selectedMode === 'online-arena') modeText = 'Nexus Arena';
+    if (this.selectedMode === 'online-arena') modeText = 'Infinite Nexus Arena';
     
     document.getElementById('overlayTitle').innerText = modeText;
-    document.getElementById('hudPlayerName').innerText = store.state.selectedSkin.toUpperCase().replace('-', '_');
+    document.getElementById('hudPlayerName').innerText = store.state.username || 'Pilot';
 
     // Setup Engine state (ready to run)
     this.engine.setup(this.selectedMode);

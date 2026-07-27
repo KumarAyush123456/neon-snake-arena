@@ -1,5 +1,5 @@
 // ==========================================================================
-// Real-time Multiplayer Node.js Game Server - Neon Militia 2D Platformer
+// Real-time Multiplayer Node.js Game Server - Mini Militia Tactical War
 // ==========================================================================
 
 import express from 'express';
@@ -32,18 +32,18 @@ const GRAVITY = 0.25;
 const FRICTION = 0.85;
 
 const PLATFORMS = [
-  { x: 0, y: 460, w: 800, h: 40, isFloor: true },
-  { x: 80, y: 340, w: 200, h: 12 },
-  { x: 520, y: 340, w: 200, h: 12 },
-  { x: 280, y: 220, w: 240, h: 12 },
-  { x: 50, y: 150, w: 140, h: 10 },
-  { x: 610, y: 150, w: 140, h: 10 }
+  { x: 0, y: 450, w: 800, h: 50, isFloor: true },
+  { x: 70, y: 330, w: 210, h: 14 },
+  { x: 520, y: 330, w: 210, h: 14 },
+  { x: 270, y: 210, w: 260, h: 14 },
+  { x: 40, y: 140, w: 150, h: 12 },
+  { x: 610, y: 140, w: 150, h: 12 }
 ];
 
 const WEAPONS = {
-  rifle: { fireRate: 150, damage: 15, speed: 12, ammoMax: 30, spread: 0.05, count: 1 },
-  shotgun: { fireRate: 700, damage: 12, speed: 10, ammoMax: 6, spread: 0.2, count: 4 },
-  sniper: { fireRate: 1200, damage: 65, speed: 20, ammoMax: 3, spread: 0.0, count: 1 }
+  rifle: { fireRate: 140, damage: 16, speed: 13, ammoMax: 30, spread: 0.06, count: 1 },
+  shotgun: { fireRate: 650, damage: 14, speed: 11, ammoMax: 6, spread: 0.22, count: 5 },
+  sniper: { fireRate: 1100, damage: 70, speed: 22, ammoMax: 3, spread: 0.0, count: 1 }
 };
 
 // Active game rooms map
@@ -58,15 +58,17 @@ class ServerPlayer {
     this.y = y;
     this.vx = 0;
     this.vy = 0;
-    this.w = 20;
-    this.h = 32;
+    this.w = 22;
+    this.h = 34;
     this.health = 100;
     this.fuel = 100;
+    this.grenades = 3;
     this.isFacingRight = true;
     this.aimAngle = 0;
     this.currentWeapon = 'rifle';
     this.ammo = 30;
     this.lastFireTime = 0;
+    this.lastGrenadeTime = 0;
     this.kills = 0;
     this.score = 0;
     this.coinsGained = 0;
@@ -85,6 +87,7 @@ class ServerPlayer {
     this.vy = 0;
     this.health = 100;
     this.fuel = 100;
+    this.grenades = 3;
     this.ammo = WEAPONS[this.currentWeapon].ammoMax;
     this.isDead = false;
   }
@@ -97,14 +100,15 @@ function getOrCreateRoom(roomId) {
     id: roomId,
     players: {},
     bullets: [],
+    grenades: [],
     powerups: [],
     tickCount: 0,
     intervalId: null
   };
 
-  // Initial powerups in room
-  room.powerups.push({ type: 'weapon', x: 250, y: 180, w: 16, h: 16 });
-  room.powerups.push({ type: 'health', x: 550, y: 300, w: 16, h: 16 });
+  // Initial supply crates in room
+  room.powerups.push({ type: 'weapon', x: 250, y: 175, w: 20, h: 20 });
+  room.powerups.push({ type: 'health', x: 550, y: 295, w: 20, h: 20 });
 
   // Start fast physics loop (33ms ticks = ~30Hz update rate)
   room.intervalId = setInterval(() => {
@@ -137,7 +141,6 @@ function tickRoom(room) {
   activePlayers.forEach(p => {
     if (p.isDead) return;
 
-    // Horizontal speeds
     if (p.inputs.left) {
       p.vx = -4.2;
       p.isFacingRight = false;
@@ -148,7 +151,6 @@ function tickRoom(room) {
       p.vx *= FRICTION;
     }
 
-    // Jetpack flight checks
     p.isFlying = false;
     if (p.inputs.up) {
       if (p.fuel > 0) {
@@ -166,7 +168,6 @@ function tickRoom(room) {
     p.x += p.vx;
     p.y += p.vy;
 
-    // Platforms collisions
     p.isGrounded = false;
     PLATFORMS.forEach(plat => {
       if (p.x + p.w >= plat.x && p.x <= plat.x + plat.w) {
@@ -180,7 +181,6 @@ function tickRoom(room) {
       }
     });
 
-    // Outer screen boundaries check
     if (p.x < 0) p.x = 0;
     if (p.x + p.w > MAP_WIDTH) p.x = MAP_WIDTH - p.w;
     if (p.y < 0) p.y = 0;
@@ -190,24 +190,21 @@ function tickRoom(room) {
       p.isGrounded = true;
     }
 
-    // Process shooting action
     if (p.shootInput) {
       const wp = WEAPONS[p.currentWeapon];
       const now = Date.now();
       if (now - p.lastFireTime >= wp.fireRate) {
         if (p.ammo <= 0) {
-          // reload click trigger
           p.ammo = wp.ammoMax;
           p.lastFireTime = now + 1000;
         } else {
           p.ammo--;
           p.lastFireTime = now;
 
-          // Broadcast firing SFX event
           io.to(room.id).emit('playSfx', { type: 'eat', x: p.x, y: p.y });
 
-          const startX = p.x + p.w / 2 + Math.cos(p.aimAngle) * 16;
-          const startY = p.y + p.h / 2 - 4 + Math.sin(p.aimAngle) * 16;
+          const startX = p.x + p.w / 2 + Math.cos(p.aimAngle) * 18;
+          const startY = p.y + p.h / 2 - 4 + Math.sin(p.aimAngle) * 18;
 
           for (let i = 0; i < wp.count; i++) {
             const spreadAngle = p.aimAngle + (Math.random() * wp.spread - wp.spread / 2);
@@ -218,7 +215,7 @@ function tickRoom(room) {
               vx: Math.cos(spreadAngle) * wp.speed,
               vy: Math.sin(spreadAngle) * wp.speed,
               damage: wp.damage,
-              color: p.skin === 'neon-magenta' ? '#ff0055' : '#00f2fe'
+              color: p.skin === 'neon-magenta' ? '#ef4444' : '#84cc16'
             });
           }
         }
@@ -234,38 +231,32 @@ function tickRoom(room) {
 
     let hit = false;
 
-    // Check bounds
     if (b.x < 0 || b.x > MAP_WIDTH || b.y < 0 || b.y > MAP_HEIGHT) {
       hit = true;
     }
 
-    // Check platform collision
     PLATFORMS.forEach(plat => {
       if (!hit && b.x >= plat.x && b.x <= plat.x + plat.w && b.y >= plat.y && b.y <= plat.y + plat.h) {
         hit = true;
       }
     });
 
-    // Check player hits
     activePlayers.forEach(p => {
       if (!hit && !p.isDead && b.ownerId !== p.id) {
         if (b.x >= p.x && b.x <= p.x + p.w && b.y >= p.y && b.y <= p.y + p.h) {
           hit = true;
           p.health = Math.max(0, p.health - b.damage);
           
-          // Player death resolution
           if (p.health <= 0) {
             p.isDead = true;
             p.respawn();
 
-            // Reward killer
             const killer = room.players[b.ownerId];
             if (killer) {
               killer.kills += 1;
               killer.score += 150;
               killer.coinsGained += 75;
 
-              // Send chat alert
               io.to(room.id).emit('chatMessage', {
                 author: 'SYSTEM',
                 text: `Combat Alert: ${killer.name} neutralized ${p.name}! (+150 Score, +75 Coins)`,
@@ -281,27 +272,61 @@ function tickRoom(room) {
   });
   room.bullets = remainingBullets;
 
-  // 3. Process powerups collisions
+  // 3. Process Grenades
+  const activeGrenades = [];
+  room.grenades.forEach(g => {
+    g.vy += GRAVITY;
+    g.x += g.vx;
+    g.y += g.vy;
+
+    PLATFORMS.forEach(plat => {
+      if (g.x >= plat.x && g.x <= plat.x + plat.w && g.y >= plat.y && g.y <= plat.y + plat.h) {
+        g.vy = -g.vy * 0.6;
+        g.vx *= 0.7;
+        g.y = plat.y - 4;
+      }
+    });
+
+    g.fuse--;
+    if (g.fuse <= 0) {
+      // Grenade explosion!
+      io.to(room.id).emit('playSfx', { type: 'explosion', x: g.x, y: g.y });
+      activePlayers.forEach(p => {
+        if (p.isDead) return;
+        const dx = (p.x + p.w / 2) - g.x;
+        const dy = (p.y + p.h / 2) - g.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist <= g.radius) {
+          const dmg = Math.round(g.damage * (1 - dist / g.radius));
+          p.health = Math.max(0, p.health - dmg);
+          if (p.health <= 0) {
+            p.isDead = true;
+            p.respawn();
+          }
+        }
+      });
+    } else {
+      activeGrenades.push(g);
+    }
+  });
+  room.grenades = activeGrenades;
+
+  // 4. Process powerups collisions
   room.powerups.forEach(pow => {
     activePlayers.forEach(p => {
       if (!p.isDead && p.x + p.w >= pow.x && p.x <= pow.x + pow.w && p.y + p.h >= pow.y && p.y <= pow.y + pow.h) {
-        // Collect!
         if (pow.type === 'health') {
           p.health = Math.min(100, p.health + 40);
           io.to(room.id).emit('playSfx', { type: 'powerup', x: pow.x, y: pow.y });
-          
-          // Relocate powerup after collection
           pow.x = 100 + Math.random() * 600;
           pow.y = 200 + Math.random() * 200;
         } else if (pow.type === 'weapon') {
-          // cycle weapon
           const weaponKeys = Object.keys(WEAPONS);
           const idx = weaponKeys.indexOf(p.currentWeapon);
           p.currentWeapon = weaponKeys[(idx + 1) % weaponKeys.length];
           p.ammo = WEAPONS[p.currentWeapon].ammoMax;
           
           io.to(room.id).emit('playSfx', { type: 'powerup', x: pow.x, y: pow.y });
-          
           pow.x = 100 + Math.random() * 600;
           pow.y = 200 + Math.random() * 200;
         }
@@ -309,7 +334,7 @@ function tickRoom(room) {
     });
   });
 
-  // 4. Emit State tick packet
+  // 5. Emit State tick packet
   const playersState = {};
   activePlayers.forEach(p => {
     playersState[p.id] = {
@@ -322,6 +347,7 @@ function tickRoom(room) {
       vy: p.vy,
       health: p.health,
       fuel: p.fuel,
+      grenades: p.grenades,
       isFacingRight: p.isFacingRight,
       aimAngle: p.aimAngle,
       currentWeapon: p.currentWeapon,
@@ -336,6 +362,7 @@ function tickRoom(room) {
   const packet = {
     players: playersState,
     bullets: room.bullets.map(b => ({ x: b.x, y: b.y, vx: b.vx, vy: b.vy, ownerId: b.ownerId, color: b.color })),
+    grenades: room.grenades,
     powerups: room.powerups
   };
 
@@ -354,24 +381,21 @@ io.on('connection', (socket) => {
 
     const room = getOrCreateRoom(currentRoomId);
 
-    // Spawn coordinate
     const x = 100 + Math.random() * 600;
     const y = 100;
 
-    const player = new ServerPlayer(socket.id, name || 'Pilot', skin || 'neon-cyan', x, y);
+    const player = new ServerPlayer(socket.id, name || 'Sgt_Pilot', skin || 'neon-cyan', x, y);
     room.players[socket.id] = player;
 
     console.log(`Pilot '${name}' entered room '${currentRoomId}'`);
 
-    // Chat broadcast
     io.to(currentRoomId).emit('chatMessage', {
       author: 'SYSTEM',
-      text: `${name || 'Pilot'} connected to grid node.`,
+      text: `${name || 'Sgt_Pilot'} connected to tactical sector.`,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     });
   });
 
-  // Track inputs ticks
   socket.on('playerInputs', ({ keys, aimAngle, shoot }) => {
     if (!currentRoomId) return;
     const room = rooms[currentRoomId];
@@ -380,6 +404,29 @@ io.on('connection', (socket) => {
       player.inputs = keys;
       player.aimAngle = aimAngle;
       player.shootInput = shoot;
+    }
+  });
+
+  socket.on('throwGrenade', () => {
+    if (!currentRoomId) return;
+    const room = rooms[currentRoomId];
+    if (room && room.players[socket.id]) {
+      const player = room.players[socket.id];
+      if (player.grenades > 0) {
+        player.grenades--;
+        const startX = player.x + player.w / 2;
+        const startY = player.y + 10;
+        room.grenades.push({
+          ownerId: player.id,
+          x: startX,
+          y: startY,
+          vx: Math.cos(player.aimAngle) * 9,
+          vy: Math.sin(player.aimAngle) * 9 - 2.5,
+          fuse: 90,
+          radius: 65,
+          damage: 75
+        });
+      }
     }
   });
 
