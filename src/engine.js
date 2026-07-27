@@ -517,9 +517,18 @@ export class GameEngine {
       }
     });
 
-    if (player.x < 0) player.x = 0;
-    if (player.x + player.w > this.virtualWidth) player.x = this.virtualWidth - player.w;
-    if (player.y < 0) player.y = 0;
+    if (player.x < 0) {
+      player.x = 0;
+      player.vx = 0;
+    }
+    if (player.x + player.w > this.virtualWidth) {
+      player.x = this.virtualWidth - player.w;
+      player.vx = 0;
+    }
+    if (player.y < 0) {
+      player.y = 0;
+      player.vy = Math.max(0, player.vy); // Stop upward momentum at ceiling
+    }
     if (player.y + player.h > this.virtualHeight) {
       player.y = this.virtualHeight - player.h;
       player.vy = 0;
@@ -1080,9 +1089,13 @@ export class GameEngine {
 
     // 2. Doodle Soldier Torso & Camo Vest
     this.ctx.fillStyle = '#166534'; // Army camo green
-    this.ctx.beginPath();
-    this.ctx.roundRect(p.x, p.y + 12, p.w, p.h - 12, 6);
-    this.ctx.fill();
+    if (typeof this.ctx.roundRect === 'function') {
+      this.ctx.beginPath();
+      this.ctx.roundRect(p.x, p.y + 12, p.w, Math.max(1, p.h - 12), 4);
+      this.ctx.fill();
+    } else {
+      this.ctx.fillRect(p.x, p.y + 12, p.w, Math.max(1, p.h - 12));
+    }
     
     // Tactical belt & buckle
     this.ctx.fillStyle = '#1f2937';

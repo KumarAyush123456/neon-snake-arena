@@ -181,9 +181,18 @@ function tickRoom(room) {
       }
     });
 
-    if (p.x < 0) p.x = 0;
-    if (p.x + p.w > MAP_WIDTH) p.x = MAP_WIDTH - p.w;
-    if (p.y < 0) p.y = 0;
+    if (p.x < 0) {
+      p.x = 0;
+      p.vx = 0;
+    }
+    if (p.x + p.w > MAP_WIDTH) {
+      p.x = MAP_WIDTH - p.w;
+      p.vx = 0;
+    }
+    if (p.y < 0) {
+      p.y = 0;
+      p.vy = Math.max(0, p.vy); // Reset upward velocity when hitting ceiling
+    }
     if (p.y + p.h > MAP_HEIGHT) {
       p.y = MAP_HEIGHT - p.h;
       p.vy = 0;
