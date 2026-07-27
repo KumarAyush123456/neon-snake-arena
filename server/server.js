@@ -391,6 +391,7 @@ function getBotNextDir(bot, allSnakes, allFood) {
 // Socket Connection Handler
 io.on('connection', (socket) => {
   console.log(`Pilot connected: ${socket.id}`);
+  io.emit('onlineCount', io.engine.clientsCount);
   let currentRoomId = null;
 
   socket.on('joinArena', ({ name, skin }) => {
@@ -469,6 +470,7 @@ io.on('connection', (socket) => {
   // Client disconnected cleanup
   socket.on('disconnect', () => {
     console.log(`Pilot disconnected: ${socket.id}`);
+    io.emit('onlineCount', io.engine.clientsCount);
     if (currentRoomId && rooms[currentRoomId]) {
       const room = rooms[currentRoomId];
       const name = room.players[socket.id]?.name || 'Pilot';

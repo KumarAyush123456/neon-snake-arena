@@ -23,6 +23,8 @@ class App {
     this.audioIconOff = document.getElementById('audioIconOff');
     this.coinDisplayVal = document.getElementById('playerCoins');
     this.onlineIndicatorVal = document.getElementById('onlineCount');
+    this.profileUsernameInput = document.getElementById('profileUsernameInput');
+    this.btnSaveUsername = document.getElementById('btnSaveUsername');
 
     // Lobby mode elements
     this.modeCards = document.querySelectorAll('.mode-card');
@@ -63,13 +65,44 @@ class App {
 
     // Subscribe elements to state changes
     store.subscribe((state) => this.updateUI(state));
-    
-    // Periodically fluctuate player count slightly
-    setInterval(() => {
-      const base = 1200 + Math.floor(Math.sin(Date.now() / 20000) * 80);
-      const dev = Math.floor(Math.random() * 8 - 4);
-      this.onlineIndicatorVal.innerText = `${base + dev} Online`;
-    }, 4000);
+
+    // Connect to real-time multiplayer server on launch for live online players count
+    networkManager.connect(
+      (state) => {
+        if (networkManager.socket) {
+          this.engine.updateNetworkState(state, networkManager.socket.id);
+        }
+      },
+      (stats) => {
+        this.engine.triggerGameOver('System Failure', `Neutralized in the Arena.`, false);
+      },
+      (sfxData) => {
+        if (this.engine.audio) {
+          this.engine.audio.playSfx(sfxData.type);
+        }
+      }
+    );
+
+    // Bind username editing listeners
+    if (this.profileUsernameInput && this.btnSaveUsername) {
+      this.profileUsernameInput.value = store.state.username || 'Grid_Pilot_99';
+      
+      const saveName = () => {
+        const newName = this.profileUsernameInput.value.trim();
+        if (newName) {
+          store.updateUsername(newName);
+          this.profileUsernameInput.style.borderColor = 'var(--accent-cyan)';
+          setTimeout(() => {
+            this.profileUsernameInput.style.borderColor = '';
+          }, 1000);
+        }
+      };
+
+      this.btnSaveUsername.addEventListener('click', saveName);
+      this.profileUsernameInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') saveName();
+      });
+    }
 
     // Initial Leaderboard Load
     this.renderLeaderboard();
@@ -238,26 +271,11 @@ class App {
   }
 
   startMultiplayer() {
-    const pName = store.state.selectedSkin.toUpperCase().replace('-', '_') + '_' + Math.floor(Math.random() * 90 + 10);
+    const pName = store.state.username || 'Grid_Pilot_99';
     const skin = store.state.selectedSkin;
     
-    networkManager.connect(
-      pName,
-      skin,
-      (state) => {
-        if (networkManager.socket) {
-          this.engine.updateNetworkState(state, networkManager.socket.id);
-        }
-      },
-      (stats) => {
-        this.engine.triggerGameOver('System Failure', `Neutralized in the Arena.`, false);
-      },
-      (sfxData) => {
-        if (sfxData.type === 'eat') audioSystem.playEat();
-        if (sfxData.type === 'eat_gold') audioSystem.playEat();
-        if (sfxData.type === 'powerup') audioSystem.playPowerup();
-      }
-    );
+    // We already connected to the server, now join the match arena!
+    networkManager.joinArena(pName, skin);
     
     this.chatUnsubscribe = networkManager.subscribeChat((msg) => {
       this.lobby.postBotMessage(msg.author, msg.text);
@@ -318,6 +336,25 @@ class App {
         this.chatUnsubscribe();
         this.chatUnsubscribe = null;
       }
+      
+      // Re-establish connection in the background for real-time online count updates on landing page
+      setTimeout(() => {
+        networkManager.connect(
+          (state) => {
+            if (networkManager.socket) {
+              this.engine.updateNetworkState(state, networkManager.socket.id);
+            }
+          },
+          (stats) => {
+            this.engine.triggerGameOver('System Failure', `Neutralized in the Arena.`, false);
+          },
+          (sfxData) => {
+            if (this.engine.audio) {
+              this.engine.audio.playSfx(sfxData.type);
+            }
+          }
+        );
+      }, 500);
     }
   }
 
@@ -403,6 +440,9 @@ class App {
     this.coinDisplayVal.innerText = state.coins;
 
     // Profile page fields
+    if (this.profileUsernameInput && state.username) {
+      this.profileUsernameInput.value = state.username;
+    }
     document.getElementById('statMatches').innerText = state.stats.matches;
     document.getElementById('statHighScore').innerText = state.highScore;
     document.getElementById('statTotalCoins').innerText = state.stats.totalFood; // proxy for total earnings

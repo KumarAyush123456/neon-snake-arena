@@ -8,6 +8,7 @@ class Store {
     
     // Default initial state
     this.state = {
+      username: 'Grid_Pilot_99',
       coins: 50,
       selectedSkin: 'neon-cyan',
       unlockedSkins: ['neon-cyan'],
@@ -87,6 +88,12 @@ class Store {
     } catch (e) {
       console.error('Failed to save state to localStorage:', e);
     }
+  }
+
+  updateUsername(newName) {
+    const cleanName = newName.trim().substring(0, 15) || 'Grid_Pilot_99';
+    this.state.username = cleanName;
+    this.save();
   }
 
   // Modify coins
