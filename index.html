@@ -315,20 +315,21 @@
             <span class="hud-label">Pilot</span>
             <span class="hud-val" id="hudPlayerName">Pilot</span>
           </div>
+          <div class="hud-item health-hud">
+            <span class="hud-label">HEALTH</span>
+            <div class="hud-bar-container"><div class="hud-bar health-bar" id="hudHealthBar" style="width: 100%"></div></div>
+          </div>
+          <div class="hud-item fuel-hud">
+            <span class="hud-label">JETPACK FUEL</span>
+            <div class="hud-bar-container"><div class="hud-bar fuel-bar" id="hudFuelBar" style="width: 100%"></div></div>
+          </div>
+          <div class="hud-item weapon-hud">
+            <span class="hud-label">WEAPON</span>
+            <span class="hud-val" id="hudWeaponAmmo">Assault Rifle: 30 / ∞</span>
+          </div>
           <div class="hud-item score-hud">
-            <span class="hud-label">Score</span>
-            <span class="hud-val score-animate" id="hudScore">0000</span>
-          </div>
-          <div class="hud-item coins-earned-hud">
-            <span class="hud-label">Gained</span>
-            <span class="hud-val text-yellow" id="hudCoinsGained">+0</span>
-          </div>
-          <div class="hud-item powerup-hud">
-            <span class="hud-label">Active Matrix</span>
-            <div class="hud-powerups-list" id="hudPowerups">
-              <!-- Icons for active powerups -->
-              <span class="no-powerups">None</span>
-            </div>
+            <span class="hud-label">Kills</span>
+            <span class="hud-val" id="hudScore">0</span>
           </div>
           <div class="hud-item actions-hud">
             <button class="hud-btn" id="btnPauseGame" title="Pause Game (Esc)">
@@ -345,8 +346,8 @@
           <div class="canvas-overlay" id="canvasOverlay">
             <div class="countdown-display hidden" id="countdownDisplay">3</div>
             <div class="overlay-card" id="menuOverlay">
-              <h2 id="overlayTitle">Ready for Launch?</h2>
-              <p id="overlayMessage">Use WASD or Arrow Keys to pilot your snake node.</p>
+              <h2 id="overlayTitle">Ready for Battle?</h2>
+              <p id="overlayMessage">A/D to Move. W/Space to Fly. Aim with Mouse & Left Click to Shoot.</p>
               <button class="btn btn-primary btn-large" id="btnOverlayStart">LAUNCH</button>
             </div>
           </div>
@@ -354,11 +355,11 @@
           <!-- Pause Menu -->
           <div class="canvas-overlay hidden" id="pauseOverlay">
             <div class="overlay-card">
-              <h2>Arena Paused</h2>
-              <p>System matrix state frozen.</p>
+              <h2>Battle Paused</h2>
+              <p>System frozen. Take a breath, Soldier.</p>
               <div class="overlay-buttons">
-                <button class="btn btn-secondary" id="btnPauseQuit">Terminate Run</button>
-                <button class="btn btn-primary" id="btnPauseResume">Resume System</button>
+                <button class="btn btn-secondary" id="btnPauseQuit">Terminate Mission</button>
+                <button class="btn btn-primary" id="btnPauseResume">Resume Mission</button>
               </div>
             </div>
           </div>
@@ -366,38 +367,38 @@
           <!-- Game Over Menu -->
           <div class="canvas-overlay hidden" id="gameOverOverlay">
             <div class="overlay-card">
-              <h2 class="text-glow-red" id="gameOverTitle">System Defeat</h2>
-              <p id="gameOverMessage">Collided with energy boundary.</p>
+              <h2 class="text-glow-red" id="gameOverTitle">Wasted</h2>
+              <p id="gameOverMessage">You were neutralized in action.</p>
               
               <div class="stats-summary-grid">
                 <div class="summary-item">
-                  <span class="lbl">Final Score</span>
-                  <span class="val" id="summaryScore">0</span>
+                  <span class="lbl">Combat Kills</span>
+                  <span class="val text-cyan" id="summaryKills">0</span>
                 </div>
                 <div class="summary-item">
                   <span class="lbl">Coins Salvaged</span>
                   <span class="val text-yellow" id="summaryCoins">+0</span>
                 </div>
                 <div class="summary-item">
-                  <span class="lbl">Max Length</span>
-                  <span class="val" id="summaryLength">0</span>
+                  <span class="lbl">Accuracy</span>
+                  <span class="val" id="summaryAccuracy">100%</span>
                 </div>
                 <div class="summary-item">
-                  <span class="lbl">Kills</span>
-                  <span class="val text-cyan" id="summaryKills">0</span>
+                  <span class="lbl">Time Survived</span>
+                  <span class="val" id="summaryTime">0s</span>
                 </div>
               </div>
 
               <div class="overlay-buttons">
                 <button class="btn btn-secondary" id="btnGameOverExit">Exit to Lobby</button>
-                <button class="btn btn-primary" id="btnGameOverRetry">Relaunch Grid</button>
+                <button class="btn btn-primary" id="btnGameOverRetry">Respawn</button>
               </div>
             </div>
           </div>
         </div>
 
         <div class="game-controls-help" id="controlsHelp">
-          <span>Controls: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or <kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd> to steer. <kbd>Esc</kbd> to Pause.</span>
+          <span>Controls: <kbd>A</kbd><kbd>D</kbd> to Walk. <kbd>W</kbd>/<kbd>Space</kbd>/<kbd>↑</kbd> to fly (Jetpack). Use Mouse to Aim & Click to Shoot. <kbd>Esc</kbd> to Pause.</span>
         </div>
       </div>
     </div>

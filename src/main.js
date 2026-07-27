@@ -361,15 +361,7 @@ class App {
   // Keyboard controls steering routes
   setupKeyboardInput() {
     window.addEventListener('keydown', (e) => {
-      if (!this.engine.isRunning || this.engine.isPaused || this.engine.isGameOver) {
-        // Allow escape to resume if paused
-        if (e.key === 'Escape' && this.engine.isPaused) {
-          this.togglePause();
-        }
-        return;
-      }
-
-      // Prevent window scroll behavior for arrow keys
+      // Prevent window scroll behavior for arrow keys and space
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
         e.preventDefault();
       }
@@ -377,59 +369,6 @@ class App {
       if (e.key === 'Escape') {
         this.togglePause();
         return;
-      }
-
-      if (this.selectedMode === 'online-arena') {
-        let dir = null;
-        if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') {
-          dir = { x: 0, y: -1 };
-        } else if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') {
-          dir = { x: 0, y: 1 };
-        } else if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') {
-          dir = { x: -1, y: 0 };
-        } else if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') {
-          dir = { x: 1, y: 0 };
-        }
-        if (dir) {
-          networkManager.steer(dir);
-        }
-        return;
-      }
-
-      const p1 = this.engine.snakes.find(s => s.id === 'player' || s.id === 'player1');
-      const p2 = this.engine.snakes.find(s => s.id === 'player2'); // local VS opponent
-
-      // Player 1 Input Routes (WASD / Arrows if single player, WASD only if 2-Player VS)
-      if (p1) {
-        // Up
-        if (e.key === 'w' || e.key === 'W' || (!p2 && e.key === 'ArrowUp')) {
-          p1.setDirection({ x: 0, y: -1 });
-        }
-        // Down
-        else if (e.key === 's' || e.key === 'S' || (!p2 && e.key === 'ArrowDown')) {
-          p1.setDirection({ x: 0, y: 1 });
-        }
-        // Left
-        else if (e.key === 'a' || e.key === 'A' || (!p2 && e.key === 'ArrowLeft')) {
-          p1.setDirection({ x: -1, y: 0 });
-        }
-        // Right
-        else if (e.key === 'd' || e.key === 'D' || (!p2 && e.key === 'ArrowRight')) {
-          p1.setDirection({ x: 1, y: 0 });
-        }
-      }
-
-      // Player 2 Local VS Input Routes (Arrow Keys)
-      if (p2) {
-        if (e.key === 'ArrowUp') {
-          p2.setDirection({ x: 0, y: -1 });
-        } else if (e.key === 'ArrowDown') {
-          p2.setDirection({ x: 0, y: 1 });
-        } else if (e.key === 'ArrowLeft') {
-          p2.setDirection({ x: -1, y: 0 });
-        } else if (e.key === 'ArrowRight') {
-          p2.setDirection({ x: 1, y: 0 });
-        }
       }
     });
   }

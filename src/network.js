@@ -17,7 +17,7 @@ class NetworkManager {
   /**
    * Connect to the real-time server and join the matchmaking lobby.
    */
-  connect(name, skin, onStateUpdate, onGameOver, onSfxTrigger) {
+  connect(onStateUpdate, onGameOver, onSfxTrigger) {
     if (this.isConnected) return;
 
     // Direct connections to localhost:3001 in dev, otherwise fallback to root host for ALB routes
@@ -40,9 +40,14 @@ class NetworkManager {
     this.socket.on('connect', () => {
       this.isConnected = true;
       console.log(`Connected to server. Socket ID: ${this.socket.id}`);
-      
-      // Request matchmaking entrance
-      this.socket.emit('joinArena', { name, skin });
+    });
+
+    // Handle online players count updates
+    this.socket.on('onlineCount', (count) => {
+      const onlineEl = document.getElementById('onlineCount');
+      if (onlineEl) {
+        onlineEl.innerText = `${count} Online`;
+      }
     });
 
     // Handle incoming state frame tick
@@ -88,6 +93,12 @@ class NetworkManager {
       this.socket = null;
     }
     this.isConnected = false;
+  }
+
+  joinArena(name, skin) {
+    if (this.isConnected && this.socket) {
+      this.socket.emit('joinArena', { name, skin });
+    }
   }
 
   steer(dir) {

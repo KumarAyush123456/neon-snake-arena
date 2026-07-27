@@ -1,5 +1,5 @@
 // ==========================================================================
-// Real-time Multiplayer Node.js Game Server
+// Real-time Multiplayer Node.js Game Server - Neon Militia 2D Platformer
 // ==========================================================================
 
 import express from 'express';
@@ -25,404 +25,361 @@ const io = new Server(httpServer, {
 
 const PORT = process.env.PORT || 3001;
 
-// Define default arena dimensions
-const GRID_WIDTH = 40;
-const GRID_HEIGHT = 22;
+// Virtual maps layout geometry
+const MAP_WIDTH = 800;
+const MAP_HEIGHT = 500;
+const GRAVITY = 0.25;
+const FRICTION = 0.85;
 
-// Bot Names for spawning
-const BOT_NAMES = [
-  'Byte_Hunter', 'GridRunner', 'ApexSlayer', 'Glitch_Master',
-  'PixelMamba', 'CypherNode', 'Zero_Cool', 'RivalPilot',
-  'NullPointer', 'LaserStrike', 'ShadowSnake', 'VaporGlider'
+const PLATFORMS = [
+  { x: 0, y: 460, w: 800, h: 40, isFloor: true },
+  { x: 80, y: 340, w: 200, h: 12 },
+  { x: 520, y: 340, w: 200, h: 12 },
+  { x: 280, y: 220, w: 240, h: 12 },
+  { x: 50, y: 150, w: 140, h: 10 },
+  { x: 610, y: 150, w: 140, h: 10 }
 ];
+
+const WEAPONS = {
+  rifle: { fireRate: 150, damage: 15, speed: 12, ammoMax: 30, spread: 0.05, count: 1 },
+  shotgun: { fireRate: 700, damage: 12, speed: 10, ammoMax: 6, spread: 0.2, count: 4 },
+  sniper: { fireRate: 1200, damage: 65, speed: 20, ammoMax: 3, spread: 0.0, count: 1 }
+};
 
 // Active game rooms map
 const rooms = {};
 
-// Server-side Snake Entity structure
-class ServerSnake {
-  constructor(id, name, startX, startY, skin, isBot = false) {
+class ServerPlayer {
+  constructor(id, name, skin, x, y) {
     this.id = id;
     this.name = name;
-    this.isBot = isBot;
     this.skin = skin;
-    this.isDead = false;
-    
-    // Position/Movement state (start length 4)
-    this.body = [
-      { x: startX, y: startY },
-      { x: startX - 1, y: startY },
-      { x: startX - 2, y: startY },
-      { x: startX - 3, y: startY }
-    ];
-    this.dir = { x: 1, y: 0 };
-    this.nextDir = { x: 1, y: 0 };
-    
-    this.shieldTime = 0;
-    this.speedTime = 0;
-    this.score = 0;
+    this.x = x;
+    this.y = y;
+    this.vx = 0;
+    this.vy = 0;
+    this.w = 20;
+    this.h = 32;
+    this.health = 100;
+    this.fuel = 100;
+    this.isFacingRight = true;
+    this.aimAngle = 0;
+    this.currentWeapon = 'rifle';
+    this.ammo = 30;
+    this.lastFireTime = 0;
     this.kills = 0;
+    this.score = 0;
     this.coinsGained = 0;
+    this.isGrounded = false;
+    this.isDead = false;
+
+    // Movement control states
+    this.inputs = { left: false, right: false, up: false };
+    this.shootInput = false;
   }
 
-  setDirection(newDir) {
-    if (this.dir.x + newDir.x === 0 && this.dir.y + newDir.y === 0) return;
-    this.nextDir = newDir;
-  }
-
-  update(gridWidth, gridHeight, shouldGrow) {
-    this.dir = { ...this.nextDir };
-    
-    const nextX = (this.body[0].x + this.dir.x + gridWidth) % gridWidth;
-    const nextY = (this.body[0].y + this.dir.y + gridHeight) % gridHeight;
-    
-    this.body.unshift({ x: nextX, y: nextY });
-    
-    if (!shouldGrow) {
-      this.body.pop();
-    }
-
-    if (this.shieldTime > 0) this.shieldTime--;
-    if (this.speedTime > 0) this.speedTime--;
+  respawn() {
+    this.x = 100 + Math.random() * 600;
+    this.y = 100;
+    this.vx = 0;
+    this.vy = 0;
+    this.health = 100;
+    this.fuel = 100;
+    this.ammo = WEAPONS[this.currentWeapon].ammoMax;
+    this.isDead = false;
   }
 }
 
-// Get or initialize room object
 function getOrCreateRoom(roomId) {
   if (rooms[roomId]) return rooms[roomId];
 
   const room = {
     id: roomId,
-    players: {}, // socket.id -> ServerSnake
-    bots: [],    // Array of ServerSnake
-    food: [],    // Array of food items
+    players: {},
+    bullets: [],
+    powerups: [],
     tickCount: 0,
     intervalId: null
   };
 
-  // Populate initial food items
-  spawnFoodInRoom(room, 'normal', 10);
-  spawnFoodInRoom(room, 'golden', 3);
-  spawnFoodInRoom(room, 'speed', 2);
-  spawnFoodInRoom(room, 'shield', 2);
+  // Initial powerups in room
+  room.powerups.push({ type: 'weapon', x: 250, y: 180, w: 16, h: 16 });
+  room.powerups.push({ type: 'health', x: 550, y: 300, w: 16, h: 16 });
 
-  // Spawn initial bots to fill room
-  for (let i = 0; i < 5; i++) {
-    spawnBotInRoom(room);
-  }
-
-  // Start game tick loop (100ms interval = 10 updates per second)
+  // Start fast physics loop (33ms ticks = ~30Hz update rate)
   room.intervalId = setInterval(() => {
     tickRoom(room);
-  }, 100);
+  }, 33);
 
   rooms[roomId] = room;
-  console.log(`Created multiplayer grid room: ${roomId}`);
+  console.log(`Created multiplayer shooter room: ${roomId}`);
   return room;
 }
 
-// Clean up empty rooms to conserve server resources
 function cleanEmptyRoom(roomId) {
   const room = rooms[roomId];
   if (!room) return;
 
-  const activePlayers = Object.keys(room.players).length;
-  if (activePlayers === 0) {
+  const activeCount = Object.keys(room.players).length;
+  if (activeCount === 0) {
     clearInterval(room.intervalId);
     delete rooms[roomId];
     console.log(`Terminated empty room: ${roomId}`);
   }
 }
 
-// Tick Physics Loop
 function tickRoom(room) {
   room.tickCount++;
-  const allSnakes = [...Object.values(room.players), ...room.bots];
 
-  // 1. Calculate Bot AI directions
-  room.bots.forEach(bot => {
-    if (bot.isDead) return;
-    const aiDir = getBotNextDir(bot, allSnakes, room.food);
-    bot.setDirection(aiDir);
-  });
+  const activePlayers = Object.values(room.players);
 
-  // 2. Move Snakes
-  allSnakes.forEach(snake => {
-    if (snake.isDead) return;
+  // 1. Process player movement physics & controls
+  activePlayers.forEach(p => {
+    if (p.isDead) return;
 
-    // Speedboost double moves
-    const moves = snake.speedTime > 0 ? 2 : 1;
-    for (let m = 0; m < moves; m++) {
-      const head = snake.body[0];
-      const nextX = (head.x + snake.nextDir.x + GRID_WIDTH) % GRID_WIDTH;
-      const nextY = (head.y + snake.nextDir.y + GRID_HEIGHT) % GRID_HEIGHT;
-      
-      const eatingIdx = room.food.findIndex(f => f.x === nextX && f.y === nextY);
-      const shouldGrow = (eatingIdx !== -1);
-      
-      snake.update(GRID_WIDTH, GRID_HEIGHT, shouldGrow);
-
-      if (shouldGrow) {
-        const eaten = room.food[eatingIdx];
-        room.food.splice(eatingIdx, 1);
-        handleEatFood(room, snake, eaten);
-        spawnFoodInRoom(room, eaten.type, 1);
-      }
+    // Horizontal speeds
+    if (p.inputs.left) {
+      p.vx = -4.2;
+      p.isFacingRight = false;
+    } else if (p.inputs.right) {
+      p.vx = 4.2;
+      p.isFacingRight = true;
+    } else {
+      p.vx *= FRICTION;
     }
-  });
 
-  // 3. Resolve Collisions
-  allSnakes.forEach(snake => {
-    if (snake.isDead) return;
-    const head = snake.body[0];
-
-    // Self collisions
-    for (let i = 1; i < snake.body.length; i++) {
-      if (snake.body[i].x === head.x && snake.body[i].y === head.y) {
-        if (snake.shieldTime > 0) continue;
-        handleSnakeDeath(room, snake, 'self');
-        break;
+    // Jetpack flight checks
+    p.isFlying = false;
+    if (p.inputs.up) {
+      if (p.fuel > 0) {
+        p.vy -= 0.65;
+        p.fuel = Math.max(0, p.fuel - 0.7);
+        p.isFlying = true;
+      }
+    } else {
+      if (p.isGrounded) {
+        p.fuel = Math.min(100, p.fuel + 0.8);
       }
     }
 
-    if (snake.isDead) return;
+    p.vy += GRAVITY;
+    p.x += p.vx;
+    p.y += p.vy;
 
-    // Body collisions against other snakes
-    for (let other of allSnakes) {
-      if (other.isDead || other.id === snake.id) continue;
-      
-      for (let seg of other.body) {
-        if (seg.x === head.x && seg.y === head.y) {
-          if (snake.shieldTime > 0) continue;
-          handleSnakeDeath(room, snake, 'combat', other);
-          break;
+    // Platforms collisions
+    p.isGrounded = false;
+    PLATFORMS.forEach(plat => {
+      if (p.x + p.w >= plat.x && p.x <= plat.x + plat.w) {
+        const playerBottom = p.y + p.h;
+        const prevPlayerBottom = playerBottom - p.vy;
+        if (prevPlayerBottom <= plat.y + 2 && playerBottom >= plat.y && p.vy > 0) {
+          p.y = plat.y - p.h;
+          p.vy = 0;
+          p.isGrounded = true;
         }
       }
-      if (snake.isDead) break;
+    });
+
+    // Outer screen boundaries check
+    if (p.x < 0) p.x = 0;
+    if (p.x + p.w > MAP_WIDTH) p.x = MAP_WIDTH - p.w;
+    if (p.y < 0) p.y = 0;
+    if (p.y + p.h > MAP_HEIGHT) {
+      p.y = MAP_HEIGHT - p.h;
+      p.vy = 0;
+      p.isGrounded = true;
     }
-  });
 
-  // 4. Clean dead bots and spawn new ones
-  room.bots = room.bots.filter(b => !b.isDead);
-  if (room.bots.length < 5 && Math.random() < 0.15) {
-    spawnBotInRoom(room);
-  }
+    // Process shooting action
+    if (p.shootInput) {
+      const wp = WEAPONS[p.currentWeapon];
+      const now = Date.now();
+      if (now - p.lastFireTime >= wp.fireRate) {
+        if (p.ammo <= 0) {
+          // reload click trigger
+          p.ammo = wp.ammoMax;
+          p.lastFireTime = now + 1000;
+        } else {
+          p.ammo--;
+          p.lastFireTime = now;
 
-  // 5. Broadcast State Frame
-  const activeSnakes = [...Object.values(room.players), ...room.bots].map(s => ({
-    id: s.id,
-    name: s.name,
-    body: s.body,
-    dir: s.dir,
-    skin: s.skin,
-    shieldTime: s.shieldTime,
-    speedTime: s.speedTime,
-    isDead: s.isDead,
-    score: s.score,
-    kills: s.kills,
-    coinsGained: s.coinsGained
-  }));
+          // Broadcast firing SFX event
+          io.to(room.id).emit('playSfx', { type: 'eat', x: p.x, y: p.y });
 
-  const leaderboard = [...activeSnakes]
-    .sort((a, b) => b.body.length - a.body.length)
-    .slice(0, 5)
-    .map(s => ({ name: s.name, score: s.score, length: s.body.length }));
+          const startX = p.x + p.w / 2 + Math.cos(p.aimAngle) * 16;
+          const startY = p.y + p.h / 2 - 4 + Math.sin(p.aimAngle) * 16;
 
-  io.to(room.id).emit('gameState', {
-    snakes: activeSnakes,
-    food: room.food,
-    leaderboard
-  });
-}
-
-function handleEatFood(room, snake, food) {
-  let scoreVal = 10;
-  let coinsVal = 3; // base multiplayer coin multiplier (3x)
-
-  if (food.type === 'golden') {
-    scoreVal = 30;
-    coinsVal = 9;
-    io.to(room.id).emit('playSfx', { type: 'eat_gold', x: food.x, y: food.y });
-  } else if (food.type === 'speed') {
-    snake.speedTime = 60;
-    scoreVal = 5;
-    io.to(room.id).emit('playSfx', { type: 'powerup', x: food.x, y: food.y });
-  } else if (food.type === 'shield') {
-    snake.shieldTime = 90;
-    scoreVal = 5;
-    io.to(room.id).emit('playSfx', { type: 'powerup', x: food.x, y: food.y });
-  } else {
-    io.to(room.id).emit('playSfx', { type: 'eat', x: food.x, y: food.y });
-  }
-
-  snake.score += scoreVal;
-  snake.coinsGained += coinsVal;
-}
-
-function handleSnakeDeath(room, snake, cause, killer = null) {
-  snake.isDead = true;
-
-  // Turn segments into food drops
-  snake.body.forEach(seg => {
-    if (Math.random() < 0.35) {
-      room.food.push({ x: seg.x, y: seg.y, type: 'normal' });
-    }
-  });
-
-  // Reward killer
-  if (killer) {
-    killer.kills += 1;
-    killer.score += 150;
-    killer.coinsGained += 75; // high multiplayer kill reward (25x3)
-    
-    // Broadcast notification to Room Chat
-    const msg = {
-      author: 'SYSTEM',
-      text: `Combat Alert: ${killer.name} neutralized ${snake.name}! Bounty distributed (+150 Score, +75 Coins).`,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-    io.to(room.id).emit('chatMessage', msg);
-  }
-
-  // Handle client-specific termination packets
-  if (!snake.isBot) {
-    const socket = io.sockets.sockets.get(snake.id);
-    if (socket) {
-      socket.emit('gameOver', {
-        score: snake.score,
-        coinsGained: snake.coinsGained,
-        kills: snake.kills,
-        length: snake.body.length
-      });
-    }
-  }
-}
-
-// Bot Spawning and Pathfinding
-function spawnBotInRoom(room) {
-  const id = 'bot-' + Math.random().toString(36).substr(2, 9);
-  const name = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
-  const skins = ['neon-magenta', 'fire', 'matrix', 'rainbow'];
-  const skin = skins[Math.floor(Math.random() * skins.length)];
-
-  let x = Math.floor(Math.random() * (GRID_WIDTH - 6)) + 3;
-  let y = Math.floor(Math.random() * (GRID_HEIGHT - 6)) + 3;
-
-  const bot = new ServerSnake(id, name, x, y, skin, true);
-  
-  const dirs = [{x:1,y:0}, {x:-1,y:0}, {x:0,y:1}, {x:0,y:-1}];
-  bot.setDirection(dirs[Math.floor(Math.random() * dirs.length)]);
-  
-  room.bots.push(bot);
-}
-
-function spawnFoodInRoom(room, type, count) {
-  for (let c = 0; c < count; c++) {
-    const x = Math.floor(Math.random() * GRID_WIDTH);
-    const y = Math.floor(Math.random() * GRID_HEIGHT);
-    room.food.push({ x, y, type });
-  }
-}
-
-function checkGridCollision(x, y, selfId, allSnakes) {
-  for (let snake of allSnakes) {
-    if (snake.isDead) continue;
-    const startIdx = (snake.id === selfId) ? 1 : 0;
-    
-    for (let i = startIdx; i < snake.body.length; i++) {
-      if (snake.body[i].x === x && snake.body[i].y === y) {
-        if (snake.id === selfId && snake.shieldTime > 0) continue;
-        return true;
+          for (let i = 0; i < wp.count; i++) {
+            const spreadAngle = p.aimAngle + (Math.random() * wp.spread - wp.spread / 2);
+            room.bullets.push({
+              ownerId: p.id,
+              x: startX,
+              y: startY,
+              vx: Math.cos(spreadAngle) * wp.speed,
+              vy: Math.sin(spreadAngle) * wp.speed,
+              damage: wp.damage,
+              color: p.skin === 'neon-magenta' ? '#ff0055' : '#00f2fe'
+            });
+          }
+        }
       }
     }
-  }
-  return false;
-}
-
-// Server side bot heuristic pathfinder
-function getBotNextDir(bot, allSnakes, allFood) {
-  const head = bot.body[0];
-  let target = null;
-  let minDist = Infinity;
-
-  allFood.forEach(food => {
-    let dx = Math.min(Math.abs(food.x - head.x), GRID_WIDTH - Math.abs(food.x - head.x));
-    let dy = Math.min(Math.abs(food.y - head.y), GRID_HEIGHT - Math.abs(food.y - head.y));
-    const d = dx + dy;
-    if (d < minDist) {
-      minDist = d;
-      target = food;
-    }
   });
 
-  if (!target) {
-    target = { x: Math.floor(GRID_WIDTH / 2), y: Math.floor(GRID_HEIGHT / 2) };
-  }
+  // 2. Process bullet movements & hit collisions
+  const remainingBullets = [];
+  room.bullets.forEach(b => {
+    b.x += b.vx;
+    b.y += b.vy;
 
-  const moves = [{x:0,y:-1}, {x:0,y:1}, {x:-1,y:0}, {x:1,y:0}];
-  let bestMove = bot.dir;
-  let bestScore = -Infinity;
+    let hit = false;
 
-  moves.forEach(m => {
-    if (m.x + bot.dir.x === 0 && m.y + bot.dir.y === 0) return;
-
-    const nx = (head.x + m.x + GRID_WIDTH) % GRID_WIDTH;
-    const ny = (head.y + m.y + GRID_HEIGHT) % GRID_HEIGHT;
-
-    let dx = Math.min(Math.abs(target.x - nx), GRID_WIDTH - Math.abs(target.x - nx));
-    let dy = Math.min(Math.abs(target.y - ny), GRID_HEIGHT - Math.abs(target.y - ny));
-    let score = -(dx + dy);
-
-    if (checkGridCollision(nx, ny, bot.id, allSnakes)) {
-      score -= 100000;
+    // Check bounds
+    if (b.x < 0 || b.x > MAP_WIDTH || b.y < 0 || b.y > MAP_HEIGHT) {
+      hit = true;
     }
 
-    score += (Math.random() - 0.5) * 0.2;
+    // Check platform collision
+    PLATFORMS.forEach(plat => {
+      if (!hit && b.x >= plat.x && b.x <= plat.x + plat.w && b.y >= plat.y && b.y <= plat.y + plat.h) {
+        hit = true;
+      }
+    });
 
-    if (score > bestScore) {
-      bestScore = score;
-      bestMove = m;
-    }
+    // Check player hits
+    activePlayers.forEach(p => {
+      if (!hit && !p.isDead && b.ownerId !== p.id) {
+        if (b.x >= p.x && b.x <= p.x + p.w && b.y >= p.y && b.y <= p.y + p.h) {
+          hit = true;
+          p.health = Math.max(0, p.health - b.damage);
+          
+          // Player death resolution
+          if (p.health <= 0) {
+            p.isDead = true;
+            p.respawn();
+
+            // Reward killer
+            const killer = room.players[b.ownerId];
+            if (killer) {
+              killer.kills += 1;
+              killer.score += 150;
+              killer.coinsGained += 75;
+
+              // Send chat alert
+              io.to(room.id).emit('chatMessage', {
+                author: 'SYSTEM',
+                text: `Combat Alert: ${killer.name} neutralized ${p.name}! (+150 Score, +75 Coins)`,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              });
+            }
+          }
+        }
+      }
+    });
+
+    if (!hit) remainingBullets.push(b);
+  });
+  room.bullets = remainingBullets;
+
+  // 3. Process powerups collisions
+  room.powerups.forEach(pow => {
+    activePlayers.forEach(p => {
+      if (!p.isDead && p.x + p.w >= pow.x && p.x <= pow.x + pow.w && p.y + p.h >= pow.y && p.y <= pow.y + pow.h) {
+        // Collect!
+        if (pow.type === 'health') {
+          p.health = Math.min(100, p.health + 40);
+          io.to(room.id).emit('playSfx', { type: 'powerup', x: pow.x, y: pow.y });
+          
+          // Relocate powerup after collection
+          pow.x = 100 + Math.random() * 600;
+          pow.y = 200 + Math.random() * 200;
+        } else if (pow.type === 'weapon') {
+          // cycle weapon
+          const weaponKeys = Object.keys(WEAPONS);
+          const idx = weaponKeys.indexOf(p.currentWeapon);
+          p.currentWeapon = weaponKeys[(idx + 1) % weaponKeys.length];
+          p.ammo = WEAPONS[p.currentWeapon].ammoMax;
+          
+          io.to(room.id).emit('playSfx', { type: 'powerup', x: pow.x, y: pow.y });
+          
+          pow.x = 100 + Math.random() * 600;
+          pow.y = 200 + Math.random() * 200;
+        }
+      }
+    });
   });
 
-  return bestMove;
+  // 4. Emit State tick packet
+  const playersState = {};
+  activePlayers.forEach(p => {
+    playersState[p.id] = {
+      id: p.id,
+      name: p.name,
+      skin: p.skin,
+      x: p.x,
+      y: p.y,
+      vx: p.vx,
+      vy: p.vy,
+      health: p.health,
+      fuel: p.fuel,
+      isFacingRight: p.isFacingRight,
+      aimAngle: p.aimAngle,
+      currentWeapon: p.currentWeapon,
+      ammo: p.ammo,
+      kills: p.kills,
+      score: p.score,
+      coinsGained: p.coinsGained,
+      isFlying: p.isFlying
+    };
+  });
+
+  const packet = {
+    players: playersState,
+    bullets: room.bullets.map(b => ({ x: b.x, y: b.y, vx: b.vx, vy: b.vy, ownerId: b.ownerId, color: b.color })),
+    powerups: room.powerups
+  };
+
+  io.to(room.id).emit('gameState', packet);
 }
 
-// Socket Connection Handler
+// Socket Connection Routing
 io.on('connection', (socket) => {
   console.log(`Pilot connected: ${socket.id}`);
   io.emit('onlineCount', io.engine.clientsCount);
   let currentRoomId = null;
 
   socket.on('joinArena', ({ name, skin }) => {
-    currentRoomId = 'infinite-nexus'; // All online matchmaking routes to single scalable sandbox room
+    currentRoomId = 'infinite-nexus';
     socket.join(currentRoomId);
 
     const room = getOrCreateRoom(currentRoomId);
-    
-    // Spawn player in random open position
-    let x = Math.floor(Math.random() * (GRID_WIDTH - 6)) + 3;
-    let y = Math.floor(Math.random() * (GRID_HEIGHT - 6)) + 3;
-    
-    const playerSnake = new ServerSnake(socket.id, name || 'Pilot', x, y, skin || 'neon-cyan');
-    room.players[socket.id] = playerSnake;
+
+    // Spawn coordinate
+    const x = 100 + Math.random() * 600;
+    const y = 100;
+
+    const player = new ServerPlayer(socket.id, name || 'Pilot', skin || 'neon-cyan', x, y);
+    room.players[socket.id] = player;
 
     console.log(`Pilot '${name}' entered room '${currentRoomId}'`);
 
-    // Broadcast Join alert to chat
-    const msg = {
+    // Chat broadcast
+    io.to(currentRoomId).emit('chatMessage', {
       author: 'SYSTEM',
       text: `${name || 'Pilot'} connected to grid node.`,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-    io.to(currentRoomId).emit('chatMessage', msg);
+    });
   });
 
-  socket.on('steer', (dir) => {
+  // Track inputs ticks
+  socket.on('playerInputs', ({ keys, aimAngle, shoot }) => {
     if (!currentRoomId) return;
     const room = rooms[currentRoomId];
     if (room && room.players[socket.id]) {
-      room.players[socket.id].setDirection(dir);
+      const player = room.players[socket.id];
+      player.inputs = keys;
+      player.aimAngle = aimAngle;
+      player.shootInput = shoot;
     }
   });
 
@@ -431,58 +388,29 @@ io.on('connection', (socket) => {
     const room = rooms[currentRoomId];
     if (!room) return;
 
-    const pilotName = room.players[socket.id]?.name || 'Pilot';
-    const msg = {
-      author: pilotName,
-      text: text.substring(0, 60), // clamp text length
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
+    const pName = room.players[socket.id]?.name || 'Pilot';
     
-    // Broadcast to room
-    io.to(currentRoomId).emit('chatMessage', msg);
-
-    // Bot interactive replies to user
-    const lowerText = text.toLowerCase();
-    let reply = null;
-
-    if (lowerText.includes('hello') || lowerText.includes('hi')) {
-      reply = `Yo ${pilotName}! Prepare to get cut off.`;
-    } else if (lowerText.includes('noob')) {
-      reply = `Watch it ${pilotName}, my neural paths are fully optimized.`;
-    } else if (lowerText.includes('hack')) {
-      reply = "Hacks? In the Nexus? Grid admins scan for anomalies constantly.";
-    } else if (lowerText.includes('skin')) {
-      reply = "Make sure to lock in your skin config before deploying.";
-    }
-
-    if (reply) {
-      setTimeout(() => {
-        const botName = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
-        io.to(currentRoomId).emit('chatMessage', {
-          author: botName,
-          text: reply,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        });
-      }, 700 + Math.random() * 800);
-    }
+    io.to(currentRoomId).emit('chatMessage', {
+      author: pName,
+      text: text.substring(0, 60),
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    });
   });
 
-  // Client disconnected cleanup
   socket.on('disconnect', () => {
     console.log(`Pilot disconnected: ${socket.id}`);
     io.emit('onlineCount', io.engine.clientsCount);
+
     if (currentRoomId && rooms[currentRoomId]) {
       const room = rooms[currentRoomId];
-      const name = room.players[socket.id]?.name || 'Pilot';
+      const pName = room.players[socket.id]?.name || 'Pilot';
       delete room.players[socket.id];
 
-      // Broadcast disconnect alerts to room chat
-      const msg = {
+      io.to(currentRoomId).emit('chatMessage', {
         author: 'SYSTEM',
-        text: `${name} disconnected from grid node.`,
+        text: `${pName} disconnected from grid node.`,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-      io.to(currentRoomId).emit('chatMessage', msg);
+      });
 
       cleanEmptyRoom(currentRoomId);
     }

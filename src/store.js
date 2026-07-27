@@ -21,12 +21,12 @@ class Store {
         timePlayed: 0 // in seconds
       },
       achievements: {
-        first_bite: { id: 'first_bite', title: 'First Bite', desc: 'Synthesized your first energy cell', unlocked: false },
-        length_30: { id: 'length_30', title: 'Centipede', desc: 'Reach a snake length of 30 units', unlocked: false },
-        length_60: { id: 'length_60', title: 'Gigantism', desc: 'Reach a snake length of 60 units', unlocked: false },
-        combat_kill: { id: 'combat_kill', title: 'Grid Enforcer', desc: 'Eliminate an opponent snake in AI Battle or Arena', unlocked: false },
-        first_buy: { id: 'first_buy', title: 'Custom Config', desc: 'Purchase any cosmetic skin from the Shop', unlocked: false },
-        rich_snake: { id: 'rich_snake', title: 'Crypto-Hoarder', desc: 'Accumulate 300 grid coins', unlocked: false }
+        first_kill: { id: 'first_kill', title: 'First Blood', desc: 'Neutralized your first cyber opponent in combat', unlocked: false },
+        survive_2m: { id: 'survive_2m', title: 'Survivor', desc: 'Survive a single battle run for 2 minutes', unlocked: false },
+        kills_10: { id: 'kills_10', title: 'Terminator', desc: 'Achieve 10 combat kills in a single battle run', unlocked: false },
+        combat_win: { id: 'combat_win', title: 'Grid Legend', desc: 'Win a multiplayer match against active players', unlocked: false },
+        first_buy: { id: 'first_buy', title: 'Custom Loadout', desc: 'Purchase any cosmetic skin from the Shop', unlocked: false },
+        rich_snake: { id: 'rich_snake', title: 'War Bounty', desc: 'Accumulate 300 grid coins', unlocked: false }
       },
       matchHistory: []
     };
@@ -141,17 +141,17 @@ class Store {
     }
 
     // Process Achievements
-    if (score > 0) {
-      this.unlockAchievement('first_bite');
-    }
-    if (length >= 30) {
-      this.unlockAchievement('length_30');
-    }
-    if (length >= 60) {
-      this.unlockAchievement('length_60');
-    }
     if (kills >= 1) {
-      this.unlockAchievement('combat_kill');
+      this.unlockAchievement('first_kill');
+    }
+    if (durationSecs >= 120) {
+      this.unlockAchievement('survive_2m');
+    }
+    if (kills >= 10) {
+      this.unlockAchievement('kills_10');
+    }
+    if (kills >= 5) {
+      this.unlockAchievement('combat_win');
     }
 
     // Add to local history
