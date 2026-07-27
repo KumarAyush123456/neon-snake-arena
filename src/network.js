@@ -23,7 +23,7 @@ class NetworkManager {
     // Direct connections to localhost:3001 in dev, otherwise fallback to root host for ALB routes
     const serverUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
       ? 'http://localhost:3001'
-      : window.location.origin; // Production AWS path
+      : 'http://neon-snake-alb-1575625893.ap-south-1.elb.amazonaws.com'; // Production AWS ALB path
 
     console.log(`Connecting to game mainframe at: ${serverUrl}`);
 
